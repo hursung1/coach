@@ -57,6 +57,7 @@ Preprocessing scripts for cross-domain slot filling and NER are in the [preproce
 - ```--tr:``` Template regularization flag
 - ```--enc_type:``` Encoder type for encoding entity tokens in the Step Two
 - ```--model_path:``` Saved model path
+- ```--cuda_device``` Visible gpu core
 
 ### Cross-domain Slot Filling
 Train Coach model for 50-shot adaptation to AddToPlaylist domain

@@ -7,6 +7,7 @@ def get_params():
     parser.add_argument("--logger_filename", type=str, default="cross-domain-slu.log")
     parser.add_argument("--dump_path", type=str, default="experiments", help="Experiment saved root path")
     parser.add_argument("--exp_id", type=str, default="1", help="Experiment id")
+    parser.add_argument("--cuda_device", type=str, default="0", help="Cuda device 0~2")
 
     # adaptation parameters
     parser.add_argument("--epoch", type=int, default=300, help="number of maximum epoch")

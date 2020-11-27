@@ -8,12 +8,18 @@ from config import get_params
 import numpy as np
 from tqdm import tqdm
 
+import os
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+
 def main(params):
     # initialize experiment
     logger = init_experiment(params, logger_filename=params.logger_filename)
     
     # get dataloader
     dataloader_tr, dataloader_val, dataloader_test, vocab = get_dataloader(params.tgt_dm, params.batch_size, params.tr, params.n_samples)
+
+    # set default device
+    os.environ["CUDA_VISIBLE_DEVICES"] = params.cuda_device
 
     # build model
     binary_slutagger = BinarySLUTagger(params, vocab)
