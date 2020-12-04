@@ -73,19 +73,21 @@ def read_file(filepath, vocab, use_label_encoder, enable_sr, domain=None):
                     se_each_sample = []
                 assert len(tokens) == len(l2_list)
                 for token, l2 in zip(tokens, l2_list):
+                    # print(l2_list)
                     if "I" in l2: 
                         if enable_sr:
                             se_each_sample[-1] += " " + token
-                        else:
-                            continue
-                    if l2 == "O" and use_label_encoder:
-                        template_each_sample[0].append(token)
-                        template_each_sample[1].append(token)
-                        template_each_sample[2].append(token)
+                        continue
+                    if l2 == "O":
+                        if use_label_encoder:
+                            template_each_sample[0].append(token)
+                            template_each_sample[1].append(token)
+                            template_each_sample[2].append(token)
                     else:
                         # "B" in l2
                         if enable_sr:
                             se_each_sample.append(token)
+                        # print(l2_list)
                         slot_name = l2.split("-")[1]
                         template_each_sample[0].append(slot_name)
                         np.random.shuffle(slot_list)
@@ -98,14 +100,16 @@ def read_file(filepath, vocab, use_label_encoder, enable_sr, domain=None):
                                 idx = idx + 1
                                 template_each_sample[j].append(slot_list[idx])
                             idx = idx + 1
-                        
+                    # print(se_each_sample)
+                    # print(template_each_sample)
                 assert len(template_each_sample[0]) == len(template_each_sample[1]) == len(template_each_sample[2])
-
+                if enable_sr:
+                    assert len(template_each_sample[0]) == len(template_each_sample[1]) == len(template_each_sample[2]) == len(se_each_sample)
                 template_list.append(template_each_sample)
                 if enable_sr:
                     slot_entity_list.append(se_each_sample)
 
-    if use_label_encoder or enable_sr:
+    if use_label_encoder:
         data_dict = {"utter": utter_list, "y1": y1_list, "y2": y2_list, "template_list": template_list}
     elif enable_sr:
         data_dict = {"utter": utter_list, "y1": y1_list, "y2": y2_list, "slot_entity_list": slot_entity_list, "slot_type_list": template_list}
@@ -114,9 +118,11 @@ def read_file(filepath, vocab, use_label_encoder, enable_sr, domain=None):
     
     return data_dict, vocab
 
-def binarize_data(data, vocab, dm, use_label_encoder):
+def binarize_data(data, vocab, dm, use_label_encoder, enable_sr):
     if use_label_encoder:
         data_bin = {"utter": [], "y1": [], "y2": [], "domains": [], "template_list": []}
+    elif enable_sr:
+        data_bin = {"utter": [], "y1": [], "y2": [], "domains": [], "slot_entity_list": [], "slot_type_list": []}
     else:
         data_bin = {"utter": [], "y1": [], "y2": [], "domains": []}
     assert len(data_bin["utter"]) == len(data_bin["y1"]) == len(data_bin["y2"])
@@ -149,6 +155,31 @@ def binarize_data(data, vocab, dm, use_label_encoder):
                 template_each_sample_bin[2].append(vocab.word2index[tok3])
             data_bin["template_list"].append(template_each_sample_bin)
 
+    elif enable_sr:
+        for se_each_sample, st_each_sample in zip(data["slot_entity_list"], data["slot_type_list"]):
+            # print(se_each_sample)
+            # print(st_each_sample)
+            se_each_sample_bin = []
+            st_each_sample_bin = [[], [], []]
+            # binarize slot entity
+            for tok in se_each_sample:
+                subword = tok.split()
+                index_list = []
+                for w in subword:
+                    index_list.append(vocab.word2index[w])
+                se_each_sample_bin.append(index_list)
+            data_bin["slot_entity_list"].append(se_each_sample_bin)
+            # binarize slot types
+            for tok1, tok2, tok3 in zip(st_each_sample[0], st_each_sample[1], st_each_sample[2]):
+                st_each_sample_bin[0].append(vocab.word2index[tok1])
+                st_each_sample_bin[1].append(vocab.word2index[tok2])
+                st_each_sample_bin[2].append(vocab.word2index[tok3])
+            data_bin["slot_type_list"].append(st_each_sample_bin)
+
+            # print(se_each_sample_bin, st_each_sample_bin)
+            # print(len(se_each_sample_bin), len(st_each_sample_bin))
+            assert len(se_each_sample_bin) == len(st_each_sample_bin[0]) == len(st_each_sample_bin[1]) == len(st_each_sample_bin[2])
+
     return data_bin
 
 def datareader(use_label_encoder=False, enable_sr=False):
@@ -158,25 +189,25 @@ def datareader(use_label_encoder=False, enable_sr=False):
 
     # load data and build vocab
     vocab = Vocab()
-    AddToPlaylistData, vocab = read_file("data/snips/AddToPlaylist/AddToPlaylist.txt", vocab, use_label_encoder, domain="AddToPlaylist")
-    BookRestaurantData, vocab = read_file("data/snips/BookRestaurant/BookRestaurant.txt", vocab, use_label_encoder, domain="BookRestaurant")
-    GetWeatherData, vocab = read_file("data/snips/GetWeather/GetWeather.txt", vocab, use_label_encoder, domain="GetWeather")
-    PlayMusicData, vocab = read_file("data/snips/PlayMusic/PlayMusic.txt", vocab, use_label_encoder, domain="PlayMusic")
-    RateBookData, vocab = read_file("data/snips/RateBook/RateBook.txt", vocab, use_label_encoder, domain="RateBook")
-    SearchCreativeWorkData, vocab = read_file("data/snips/SearchCreativeWork/SearchCreativeWork.txt", vocab, use_label_encoder, domain="SearchCreativeWork")
-    SearchScreeningEventData, vocab = read_file("data/snips/SearchScreeningEvent/SearchScreeningEvent.txt", vocab, use_label_encoder, domain="SearchScreeningEvent")
+    AddToPlaylistData, vocab = read_file("data/snips/AddToPlaylist/AddToPlaylist.txt", vocab, use_label_encoder, enable_sr, domain="AddToPlaylist")
+    BookRestaurantData, vocab = read_file("data/snips/BookRestaurant/BookRestaurant.txt", vocab, use_label_encoder, enable_sr, domain="BookRestaurant")
+    GetWeatherData, vocab = read_file("data/snips/GetWeather/GetWeather.txt", vocab, use_label_encoder, enable_sr, domain="GetWeather")
+    PlayMusicData, vocab = read_file("data/snips/PlayMusic/PlayMusic.txt", vocab, use_label_encoder, enable_sr, domain="PlayMusic")
+    RateBookData, vocab = read_file("data/snips/RateBook/RateBook.txt", vocab, use_label_encoder, enable_sr, domain="RateBook")
+    SearchCreativeWorkData, vocab = read_file("data/snips/SearchCreativeWork/SearchCreativeWork.txt", vocab, use_label_encoder, enable_sr, domain="SearchCreativeWork")
+    SearchScreeningEventData, vocab = read_file("data/snips/SearchScreeningEvent/SearchScreeningEvent.txt", vocab, use_label_encoder, enable_sr, domain="SearchScreeningEvent")
 
     if use_label_encoder or enable_sr:
         # update slot names into vocabulary
         vocab.index_words(slot_list)
 
     # binarize data
-    data["AddToPlaylist"] = binarize_data(AddToPlaylistData, vocab, "AddToPlaylist", use_label_encoder)
-    data["BookRestaurant"] = binarize_data(BookRestaurantData, vocab, "BookRestaurant", use_label_encoder)
-    data["GetWeather"] = binarize_data(GetWeatherData, vocab, "GetWeather", use_label_encoder)
-    data["PlayMusic"] = binarize_data(PlayMusicData, vocab, "PlayMusic", use_label_encoder)
-    data["RateBook"] = binarize_data(RateBookData, vocab, "RateBook", use_label_encoder)
-    data["SearchCreativeWork"] = binarize_data(SearchCreativeWorkData, vocab, "SearchCreativeWork", use_label_encoder)
-    data["SearchScreeningEvent"] = binarize_data(SearchScreeningEventData, vocab, "SearchScreeningEvent", use_label_encoder)
+    data["AddToPlaylist"] = binarize_data(AddToPlaylistData, vocab, "AddToPlaylist", use_label_encoder, enable_sr)
+    data["BookRestaurant"] = binarize_data(BookRestaurantData, vocab, "BookRestaurant", use_label_encoder, enable_sr)
+    data["GetWeather"] = binarize_data(GetWeatherData, vocab, "GetWeather", use_label_encoder, enable_sr)
+    data["PlayMusic"] = binarize_data(PlayMusicData, vocab, "PlayMusic", use_label_encoder, enable_sr)
+    data["RateBook"] = binarize_data(RateBookData, vocab, "RateBook", use_label_encoder, enable_sr)
+    data["SearchCreativeWork"] = binarize_data(SearchCreativeWorkData, vocab, "SearchCreativeWork", use_label_encoder, enable_sr)
+    data["SearchScreeningEvent"] = binarize_data(SearchScreeningEventData, vocab, "SearchScreeningEvent", use_label_encoder, enable_sr)
     
     return data, vocab

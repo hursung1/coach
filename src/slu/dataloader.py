@@ -8,16 +8,38 @@ logger = logging.getLogger()
 
 
 class Dataset(data.Dataset):
-    def __init__(self, X, y1, y2, domains, template_list=None):
+    def __init__(self, X, y1, y2, domains, list1=None, list2=None):
+        """
+        For no regularization (learn_mode=0)
+        - list1 = None
+        - list2 = None
+        For slot regularization (learn_mode=2)
+        - list1: slot entity list
+        - list2: slot type list
+        For template regularization (learn_mode=1)
+        - list1: template list
+        - list2: None
+        """
+        self.learn_mode = 0
         self.X = X
         self.y1 = y1
         self.y2 = y2
         self.domains = domains
-        self.template_list = template_list
+        if list2 is not None: # slot regularization
+            self.slot_entity_list = list1
+            self.slot_type_list = list2
+            self.learn_mode = 2
+        else: # template regularization
+            self.template_list = list1
+            self.learn_mode = 1
 
     def __getitem__(self, index):
-        if self.template_list is not None:
-            return self.X[index], self.y1[index], self.y2[index], self.domains[index], self.template_list[index]
+        if self.learn_mode == 1:
+            return self.X[index], self.y1[index], self.y2[index], self.domains[index], \
+                self.template_list[index]
+        elif self.learn_mode == 2:
+            return self.X[index], self.y1[index], self.y2[index], self.domains[index], \
+                self.slot_entity_list[index], self.slot_type_list[index]
         else:
             return self.X[index], self.y1[index], self.y2[index], self.domains[index]
     
