@@ -19,6 +19,7 @@ class SLUTrainer(object):
         self.slotname_predictor = slotname_predictor
         self.lr = params.lr
         self.use_label_encoder = params.tr
+        self.enable_sr = params.sr
         self.num_domain = params.num_domain
         if self.use_label_encoder:
             self.sent_repre_generator = sent_repre_generator

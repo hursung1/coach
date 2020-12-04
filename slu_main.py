@@ -11,6 +11,10 @@ from tqdm import tqdm
 import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 
+DEFAULT = 0
+TEM_REG = 1
+SLOT_REG = 2
+
 def main(params):
     # initialize experiment
     logger = init_experiment(params, logger_filename=params.logger_filename)
