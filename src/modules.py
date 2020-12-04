@@ -69,7 +69,7 @@ class Attention(nn.Module):
         self.return_attention = return_attention
         self.attention_size = attention_size
         self.attention_vector = Parameter(torch.FloatTensor(attention_size))
-        torch.nn.init.uniform(self.attention_vector.data, -0.01, 0.01)
+        torch.nn.init.uniform_(self.attention_vector.data, -0.01, 0.01)
 
     def __repr__(self):
         s = '{name}({attention_size}, return attention={return_attention})'

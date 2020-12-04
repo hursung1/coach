@@ -48,6 +48,31 @@ def collate_fn_for_label_encoder(data):
     
     return padded_seqs, lengths, y1, y2, domains, padded_templates, tem_lengths
     
+def collate_fn_for_se_reg(data):
+    X, y1, y2, domains, slot_entity, slot_type = zip(*data)
+    lengths = [len(bs_x) for bs_x in X]
+    max_lengths = max(lengths)
+    padded_seqs = torch.LongTensor(len(X), max_lengths).fill_(PAD_INDEX)
+    for i, seq in enumerate(X):
+        length = lengths[i]
+        padded_seqs[i, :length] = torch.LongTensor(seq)
+    lengths = torch.LongTensor(lengths)
+    domains = torch.LongTensor(domains)
+    
+    se_lengths = [len(sample_se) for sample_se in slot_entity]
+    max_se_len = max(se_lengths)
+    padded_slot_entities = torch.LongTensor(len(slot_entity), max_se_len).fill_(PAD_INDEX)
+    padded_slot_type = torch.LongTensor(len(slot_type), 3, max_se_len).fill_(PAD_INDEX)
+    for j, (sample_se, sample_st) in enumerate(zip(slot_entity, slot_type)):
+        length = se_lengths[j]
+        padded_slot_entities[j, :length] = torch.LongTensor(sample_se)
+        padded_slot_type[j, 0, :length] = torch.LongTensor(sample_st[0])
+        padded_slot_type[j, 1, :length] = torch.LongTensor(sample_st[1])
+        padded_slot_type[j, 2, :length] = torch.LongTensor(sample_st[2])
+    se_lengths = torch.LongTensor(se_lengths)
+    
+    return padded_seqs, lengths, y1, y2, domains, padded_slot_entities, padded_slot_type, se_lengths
+    
 
 def collate_fn(data):
     X, y1, y2, domains = zip(*data)
@@ -63,10 +88,12 @@ def collate_fn(data):
     return padded_seqs, lengths, y1, y2, domains
 
 
-def get_dataloader(tgt_domain, batch_size, use_label_encoder, n_samples):
-    all_data, vocab = datareader(use_label_encoder)
+def get_dataloader(tgt_domain, batch_size, use_label_encoder, enable_sr, n_samples):
+    all_data, vocab = datareader(use_label_encoder, enable_sr)
     if use_label_encoder:
         train_data = {"utter": [], "y1": [], "y2": [], "domains": [], "template_list": []}
+    elif enable_sr:
+        train_data = {"utter": [], "y1": [], "y2": [], "domains": [], "slot_entity_list": [], "slot_type_list": []}
     else:
         train_data = {"utter": [], "y1": [], "y2": [], "domains": []}
     for dm_name, dm_data in all_data.items():
@@ -78,6 +105,9 @@ def get_dataloader(tgt_domain, batch_size, use_label_encoder, n_samples):
 
             if use_label_encoder:
                 train_data["template_list"].extend(dm_data["template_list"])
+            elif enable_sr:
+                train_data["slot_entity_list"].extend(dm_data["slot_entity_list"])
+                train_data["slot_type_list"].extend(dm_data["slot_type_list"])
 
     val_data = {"utter": [], "y1": [], "y2": [], "domains": []}
     test_data = {"utter": [], "y1": [], "y2": [], "domains": []}
@@ -103,6 +133,9 @@ def get_dataloader(tgt_domain, batch_size, use_label_encoder, n_samples):
 
         if use_label_encoder:
             train_data["template_list"].extend(all_data[tgt_domain]["template_list"][:n_samples])
+        elif enable_sr:
+            train_data["slot_entity_list"].extend(all_data[tgt_domain]["slot_entity_list"][:n_samples])
+            train_data["slot_type_list"].extend(all_data[tgt_domain]["slot_type_list"][:n_samples])
 
         # from n to 500 samples as validation set
         val_data["utter"] = all_data[tgt_domain]["utter"][n_samples:500]  
@@ -118,12 +151,19 @@ def get_dataloader(tgt_domain, batch_size, use_label_encoder, n_samples):
 
     if use_label_encoder:
         dataset_tr = Dataset(train_data["utter"], train_data["y1"], train_data["y2"], train_data["domains"], train_data["template_list"])
+    elif enable_sr:
+        dataset_tr = Dataset(train_data["utter"], train_data["y1"], train_data["y2"], train_data["domains"], train_data["slot_entity_list"], train_data["slot_type_list"])
     else:
         dataset_tr = Dataset(train_data["utter"], train_data["y1"], train_data["y2"], train_data["domains"])
     dataset_val = Dataset(val_data["utter"], val_data["y1"], val_data["y2"], val_data["domains"])
     dataset_test = Dataset(test_data["utter"], test_data["y1"], test_data["y2"], test_data["domains"])
 
-    dataloader_tr = DataLoader(dataset=dataset_tr, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_for_label_encoder if use_label_encoder else collate_fn)
+    if use_label_encoder:
+        dataloader_tr = DataLoader(dataset=dataset_tr, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_for_label_encoder)
+    elif enable_sr:
+        dataloader_tr = DataLoader(dataset=dataset_tr, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_for_se_reg)
+    else:
+        dataloader_tr = DataLoader(dataset=dataset_tr, batch_size=batch_size, shuffle=True, )
     dataloader_val = DataLoader(dataset=dataset_val, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
     dataloader_test = DataLoader(dataset=dataset_test, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 

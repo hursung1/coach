@@ -58,10 +58,10 @@ class TransformerEncoder(nn.Module):
         #Add input dropout
         x = self.input_dropout(inputs)
         
-        # Project to hidden size
+        #Project to hidden size(embedding)
         x = self.embedding_proj(x)
         
-        # Add timing signal
+        #Add timing signal(positional encoding)
         x += self.timing_signal[:, :inputs.shape[1], :].type_as(inputs.data)
     
         y = self.enc(x)

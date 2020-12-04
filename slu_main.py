@@ -16,7 +16,7 @@ def main(params):
     logger = init_experiment(params, logger_filename=params.logger_filename)
     
     # get dataloader
-    dataloader_tr, dataloader_val, dataloader_test, vocab = get_dataloader(params.tgt_dm, params.batch_size, params.tr, params.n_samples)
+    dataloader_tr, dataloader_val, dataloader_test, vocab = get_dataloader(params.tgt_dm, params.batch_size, params.tr, params.sr, params.n_samples)
 
     # set default device
     os.environ["CUDA_VISIBLE_DEVICES"] = params.cuda_device

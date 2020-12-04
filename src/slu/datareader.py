@@ -29,10 +29,12 @@ class Vocab():
             else:
                 self.word2count[word]+=1
 
-def read_file(filepath, vocab, use_label_encoder, domain=None):
+def read_file(filepath, vocab, use_label_encoder, enable_sr, domain=None):
     utter_list, y1_list, y2_list = [], [], []
-    if use_label_encoder:
+    if use_label_encoder or enable_sr:
         template_list = []
+        if enable_sr:
+            slot_entity_list = []
     with open(filepath, "r") as f:
         for i, line in enumerate(f):
             line = line.strip()  # text \t label
@@ -56,25 +58,39 @@ def read_file(filepath, vocab, use_label_encoder, domain=None):
                     l1_list.append("O")
             y1_list.append(l1_list)
 
-            if use_label_encoder:
+            if use_label_encoder or enable_sr:
                 """
-                template_each_sample[0] is correct template
-                template_each_sample[1] and template_each_sample[2] are incorrect template (replace correct slots with other slots)
+                if use_label_encoder is True:
+                    template_each_sample[0] is correct template
+                    template_each_sample[1] and template_each_sample[2] are incorrect template (replace correct slots with other slots)
+                elif enable_sr is True:
+                    template_each_sample[0] is correct slot type list
+                    template_each_sample[1] and template_each_sample[2] are incorrect slot type list
+
                 """
                 template_each_sample = [[],[],[]]
+                if enable_sr:
+                    se_each_sample = []
                 assert len(tokens) == len(l2_list)
                 for token, l2 in zip(tokens, l2_list):
-                    if "I" in l2: continue
-                    if l2 == "O":
+                    if "I" in l2: 
+                        if enable_sr:
+                            se_each_sample[-1] += " " + token
+                        else:
+                            continue
+                    if l2 == "O" and use_label_encoder:
                         template_each_sample[0].append(token)
                         template_each_sample[1].append(token)
                         template_each_sample[2].append(token)
                     else:
                         # "B" in l2
+                        if enable_sr:
+                            se_each_sample.append(token)
                         slot_name = l2.split("-")[1]
                         template_each_sample[0].append(slot_name)
                         np.random.shuffle(slot_list)
                         idx = 0
+                        # append wrong representation / slot type
                         for j in range(1, 3):  # j from 1 to 2
                             if slot_list[idx] != slot_name:
                                 template_each_sample[j].append(slot_list[idx])
@@ -86,9 +102,13 @@ def read_file(filepath, vocab, use_label_encoder, domain=None):
                 assert len(template_each_sample[0]) == len(template_each_sample[1]) == len(template_each_sample[2])
 
                 template_list.append(template_each_sample)
+                if enable_sr:
+                    slot_entity_list.append(se_each_sample)
 
-    if use_label_encoder:
+    if use_label_encoder or enable_sr:
         data_dict = {"utter": utter_list, "y1": y1_list, "y2": y2_list, "template_list": template_list}
+    elif enable_sr:
+        data_dict = {"utter": utter_list, "y1": y1_list, "y2": y2_list, "slot_entity_list": slot_entity_list, "slot_type_list": template_list}
     else:
         data_dict = {"utter": utter_list, "y1": y1_list, "y2": y2_list}
     
@@ -131,7 +151,7 @@ def binarize_data(data, vocab, dm, use_label_encoder):
 
     return data_bin
 
-def datareader(use_label_encoder=False):
+def datareader(use_label_encoder=False, enable_sr=False):
     logger.info("Loading and processing data ...")
 
     data = {"AddToPlaylist": {}, "BookRestaurant": {}, "GetWeather": {}, "PlayMusic": {}, "RateBook": {}, "SearchCreativeWork": {}, "SearchScreeningEvent": {}}
@@ -146,7 +166,7 @@ def datareader(use_label_encoder=False):
     SearchCreativeWorkData, vocab = read_file("data/snips/SearchCreativeWork/SearchCreativeWork.txt", vocab, use_label_encoder, domain="SearchCreativeWork")
     SearchScreeningEventData, vocab = read_file("data/snips/SearchScreeningEvent/SearchScreeningEvent.txt", vocab, use_label_encoder, domain="SearchScreeningEvent")
 
-    if use_label_encoder:
+    if use_label_encoder or enable_sr:
         # update slot names into vocabulary
         vocab.index_words(slot_list)
 

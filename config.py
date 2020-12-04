@@ -31,6 +31,7 @@ def get_params():
 
     # add label_encoder
     parser.add_argument("--tr", default=False, action="store_true", help="use template regularization")
+    parser.add_argument("--sr", default=False, action="store_true", help="use slot regularization")
 
     # few shot learning
     parser.add_argument("--n_samples", type=int, default=0, help="number of samples for few shot learning")
