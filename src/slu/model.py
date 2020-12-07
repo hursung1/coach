@@ -83,7 +83,7 @@ class SlotNamePredictor(nn.Module):
         
         self.slot_embs = load_embedding_from_pkl(params.slot_emb_file)
     
-    def forward(self, domains, hidden_layers, binary_preditions=None, binary_golds=None, final_golds=None):
+    def forward(self, domains, hidden_layers, binary_predictions=None, binary_golds=None, final_golds=None):
         """
         Inputs:
             domains: domain list for each sample (bsz,)
@@ -92,10 +92,11 @@ class SlotNamePredictor(nn.Module):
             binary_golds: in the teacher forcing mode: binary_golds is not None (bsz, seq_len)
             final_golds: used only in the training mode (bsz, seq_len)
         Outputs:
+            hidden_states_list: list of hidden states corresponding to slots
             pred_slotname_list: list of predicted slot names
             gold_slotname_list: list of gold slot names  (only return this in the training mode)
         """
-        binary_labels = binary_golds if binary_golds is not None else binary_preditions
+        binary_labels = binary_golds if binary_golds is not None else binary_predictions
 
         feature_list = []
         if final_golds is not None:
@@ -232,13 +233,25 @@ class SentRepreGenerator(nn.Module):
         # attention layers for templates and input sequences
         self.input_atten_layer = Attention(attention_size=self.hidden_size)
         self.template_attn_layer = Attention(attention_size=self.hidden_size)
-        # self.attn_layer = Attention(attention_size=self.hidden_size)
+        if params.tr:
+            self.tr = True
+            self.sr = False
+
+        elif params.sr:
+            self.sr = True
+            self.tr = False 
 
     def forward(self, templates, tem_lengths, hidden_layers, x_lengths):
         """
         Inputs:
-            templates: (bsz, 3, max_template_length)
-            tem_lengths: (bsz,)
+            if template regularization:
+                templates: (bsz, 3, max_template_length)
+                tem_lengths: (bsz,)
+            
+            elif slot type regularization:
+                slot_type: (bsz, 3, max_slot_entities_len)
+                slot_type_length: (bsz, )
+
             hidden_layers: (bsz, max_length, hidden_size)
             x_lengths: (bsz,)
         Outputs:

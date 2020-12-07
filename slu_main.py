@@ -54,10 +54,10 @@ def main(params):
                 pbar.set_description("(Epoch {}) LOSS BIN:{:.4f} LOSS SLOT:{:.4f} LOSS TEM0:{:.4f} LOSS TEM1:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list), np.mean(loss_tem0_list), np.mean(loss_tem1_list)))
         
         elif params.sr:
-            for i, (X, lengths, y_bin, y_final, y_dm, slot_entity, slot_type, se_lengths) in pbar:
-                X, lengths, slot_entity, slot_type, se_lengths = X.cuda(), lengths.cuda(), slot_entity.cuda(), slot_type.cuda(), se_lengths.cuda()
+            for i, (X, lengths, y_bin, y_final, y_dm, slot_entity, slot_type, st_lengths) in pbar:
+                X, lengths, slot_entity, slot_type, st_lengths = X.cuda(), lengths.cuda(), slot_entity.cuda(), slot_type.cuda(), st_lengths.cuda()
                 # se_lengths: the number of slot entities in each speak
-                loss_bin, loss_slotname, _, _ = slu_trainer.train_step(X, lengths, y_bin, y_final, y_dm, slot_entity=slot_entity, slot_type=slot_type, slot_type_lengths=se_lengths, epoch=e)
+                loss_bin, loss_slotname, loss_tem0, loss_tem1 = slu_trainer.train_step(X, lengths, y_bin, y_final, y_dm, slot_type=slot_type, slot_type_lengths=st_lengths, epoch=e)
                 loss_bin_list.append(loss_bin)
                 loss_slotname_list.append(loss_slotname)
                 

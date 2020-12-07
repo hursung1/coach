@@ -72,9 +72,9 @@ def collate_fn_for_label_encoder(data):
     
 def collate_fn_for_se_reg(data):
     X, y1, y2, domains, slot_entity, slot_type = zip(*data)
-    print(slot_entity)
-    print(slot_type)
-    print("==============================")
+    # print(slot_entity)
+    # print(slot_type)
+    # print("==============================")
     lengths = [len(bs_x) for bs_x in X]
     max_lengths = max(lengths)
     padded_seqs = torch.LongTensor(len(X), max_lengths).fill_(PAD_INDEX)
