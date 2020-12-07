@@ -44,7 +44,24 @@ class SLUTrainer(object):
 
         self.stop_training_flag = False
     
-    def train_step(self, X, lengths, y_bin, y_final, y_dm, templates=None, tem_lengths=None, epoch=None):
+    def train_step(self, X, lengths, y_bin, y_final, y_dm, **kwargs):
+        """
+        keyword arguments
+        ----------------------
+        templates, tem_lengths, slot_entity, slot_type, slot_type_lengths, epoch
+        
+        for template regularization: slot_entity, slot_type, slot_type_lengths are None
+
+        for slot type regularization: templates, tem_lengths are None
+        """
+        templates = kwargs["templates"] if "templates" in kwargs.keys() else None
+        tem_lengths = kwargs["tem_lengths"] if "tem_lengths" in kwargs.keys() else None
+        slot_entity = kwargs["slot_entity"] if "slot_entity" in kwargs.keys() else None
+        slot_type = kwargs["slot_type"] if "slot_type" in kwargs.keys() else None
+        slot_type_lengths = kwargs["slot_type_lengths"] if "slot_type_lengths" in kwargs.keys() else None
+        beta = kwargs["beta"] if "beta" in kwargs.keys() else None
+        epoch = kwargs["epoch"] if "epoch" in kwargs.keys() else None
+
         self.binary_slu_tagger.train()
         self.slotname_predictor.train()
         if self.use_label_encoder:
@@ -69,13 +86,14 @@ class SLUTrainer(object):
             loss_slotname.backward(retain_graph=True)
             self.optimizer.step()
         
+        # template regularizer
         if self.use_label_encoder:
             templates_repre, input_repre = self.sent_repre_generator(templates, tem_lengths, lstm_hiddens, lengths)
 
             input_repre = input_repre.detach()
             template0_loss = self.loss_fn_mse(templates_repre[:, 0, :], input_repre)
-            template1_loss = -1 * self.loss_fn_mse(templates_repre[:, 1, :], input_repre)
-            template2_loss = -1 * self.loss_fn_mse(templates_repre[:, 2, :], input_repre)
+            template1_loss = -beta * self.loss_fn_mse(templates_repre[:, 1, :], input_repre)
+            template2_loss = -beta * self.loss_fn_mse(templates_repre[:, 2, :], input_repre)
             input_repre.requires_grad = True
 
             self.optimizer.zero_grad()
@@ -87,8 +105,8 @@ class SLUTrainer(object):
             if epoch > 3:
                 templates_repre = templates_repre.detach()
                 input_loss0 = self.loss_fn_mse(input_repre, templates_repre[:, 0, :])
-                input_loss1 = -1 * self.loss_fn_mse(input_repre, templates_repre[:, 1, :])
-                input_loss2 = -1 * self.loss_fn_mse(input_repre, templates_repre[:, 2, :])
+                input_loss1 = -beta * self.loss_fn_mse(input_repre, templates_repre[:, 1, :])
+                input_loss2 = -beta * self.loss_fn_mse(input_repre, templates_repre[:, 2, :])
                 templates_repre.requires_grad = True
 
                 self.optimizer.zero_grad()
@@ -97,8 +115,39 @@ class SLUTrainer(object):
                 input_loss2.backward(retain_graph=True)
                 self.optimizer.step()
         
+        # slot type regularizer
+        elif self.enable_sr:
+            templates_repre, input_repre = self.sent_repre_generator(slot_type, slot_type_lengths, lstm_hiddens, lengths)
+
+            input_repre = input_repre.detach()
+            template0_loss = self.loss_fn_mse(templates_repre[:, 0, :], input_repre)
+            template1_loss = -beta * self.loss_fn_mse(templates_repre[:, 1, :], input_repre)
+            template2_loss = -beta * self.loss_fn_mse(templates_repre[:, 2, :], input_repre)
+            input_repre.requires_grad = True
+
+            self.optimizer.zero_grad()
+            template0_loss.backward(retain_graph=True)
+            template1_loss.backward(retain_graph=True)
+            template2_loss.backward(retain_graph=True)
+            self.optimizer.step()
+
+            if epoch > 3:
+                templates_repre = templates_repre.detach()
+                input_loss0 = self.loss_fn_mse(input_repre, templates_repre[:, 0, :])
+                input_loss1 = -beta * self.loss_fn_mse(input_repre, templates_repre[:, 1, :])
+                input_loss2 = -beta * self.loss_fn_mse(input_repre, templates_repre[:, 2, :])
+                templates_repre.requires_grad = True
+
+                self.optimizer.zero_grad()
+                input_loss0.backward(retain_graph=True)
+                input_loss1.backward(retain_graph=True)
+                input_loss2.backward(retain_graph=True)
+                self.optimizer.step()
+
         if self.use_label_encoder:
             return loss_bin.item(), loss_slotname.item(), template0_loss.item(), template1_loss.item()
+        elif self.enable_sr:
+            return loss_bin.item(), loss_slotname.item(), 
         else:
             return loss_bin.item(), loss_slotname.item()
     

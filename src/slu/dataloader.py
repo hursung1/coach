@@ -72,6 +72,9 @@ def collate_fn_for_label_encoder(data):
     
 def collate_fn_for_se_reg(data):
     X, y1, y2, domains, slot_entity, slot_type = zip(*data)
+    print(slot_entity)
+    print(slot_type)
+    print("==============================")
     lengths = [len(bs_x) for bs_x in X]
     max_lengths = max(lengths)
     padded_seqs = torch.LongTensor(len(X), max_lengths).fill_(PAD_INDEX)
@@ -81,13 +84,22 @@ def collate_fn_for_se_reg(data):
     lengths = torch.LongTensor(lengths)
     domains = torch.LongTensor(domains)
     
-    se_lengths = [len(sample_se) for sample_se in slot_entity]
+    se_lengths = [] # the number of 'slot entities' for each speech
+    max_token_length = 0 # maximum length of token of each slot entity
+    for sample_se_lst in slot_entity:
+        se_lengths.append(len(sample_se_lst))
+        for tokens in sample_se_lst:
+            if max_token_length < len(tokens):
+                max_token_length = len(tokens)
+    
     max_se_len = max(se_lengths)
-    padded_slot_entities = torch.LongTensor(len(slot_entity), max_se_len).fill_(PAD_INDEX)
+    padded_slot_entities = torch.LongTensor(len(slot_entity), max_se_len, max_token_length).fill_(PAD_INDEX)
     padded_slot_type = torch.LongTensor(len(slot_type), 3, max_se_len).fill_(PAD_INDEX)
+
     for j, (sample_se, sample_st) in enumerate(zip(slot_entity, slot_type)):
         length = se_lengths[j]
-        padded_slot_entities[j, :length] = torch.LongTensor(sample_se)
+        for i, each_se in enumerate(sample_se):
+            padded_slot_entities[j, :length, :len(each_se)] = torch.LongTensor(each_se)
         padded_slot_type[j, 0, :length] = torch.LongTensor(sample_st[0])
         padded_slot_type[j, 1, :length] = torch.LongTensor(sample_st[1])
         padded_slot_type[j, 2, :length] = torch.LongTensor(sample_st[2])

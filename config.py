@@ -18,6 +18,7 @@ def get_params():
     parser.add_argument("--num_binslot", type=int, default=3, help="number of binary slot O,B,I")
     parser.add_argument("--num_slot", type=int, default=72, help="number of slot types")
     parser.add_argument("--num_domain", type=int, default=7, help="number of domain")
+    parser.add_argument("--beta" , type=int, default=1, help="hyperparameter for template/slot entity regularization")
     parser.add_argument("--freeze_emb", default=False, action="store_true", help="Freeze embeddings")
 
     parser.add_argument("--slot_emb_file", type=str, default="./data/snips/emb/slot_word_char_embs_based_on_each_domain.dict", help="dictionary type: slot embeddings based on each domain") # slot_embs_based_on_each_domain.dict w/o char embeddings  slot_word_char_embs_based_on_each_domain.dict w/ char embeddings
