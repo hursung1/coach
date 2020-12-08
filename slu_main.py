@@ -41,6 +41,8 @@ def main(params):
         loss_bin_list, loss_slotname_list = [], []
         if params.tr:
             loss_tem0_list, loss_tem1_list = [], []
+        elif params.sr:
+            loss_right_st_list, loss_wrong_st_list = [], []
         pbar = tqdm(enumerate(dataloader_tr), total=len(dataloader_tr))
         if params.tr:
             for i, (X, lengths, y_bin, y_final, y_dm, templates, tem_lengths) in pbar:
@@ -54,12 +56,14 @@ def main(params):
                 pbar.set_description("(Epoch {}) LOSS BIN:{:.4f} LOSS SLOT:{:.4f} LOSS TEM0:{:.4f} LOSS TEM1:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list), np.mean(loss_tem0_list), np.mean(loss_tem1_list)))
         
         elif params.sr:
-            for i, (X, lengths, y_bin, y_final, y_dm, slot_entity, slot_type, st_lengths) in pbar:
-                X, lengths, slot_entity, slot_type, st_lengths = X.cuda(), lengths.cuda(), slot_entity.cuda(), slot_type.cuda(), st_lengths.cuda()
-                # se_lengths: the number of slot entities in each speak
+            for i, (X, lengths, y_bin, y_final, y_dm, slot_type, st_lengths) in pbar:
+                X, lengths, slot_type, st_lengths = X.cuda(), lengths.cuda(), slot_type.cuda(), st_lengths.cuda()
+                # st_lengths: the number of slot types in each speech
                 loss_bin, loss_slotname, loss_tem0, loss_tem1 = slu_trainer.train_step(X, lengths, y_bin, y_final, y_dm, slot_type=slot_type, slot_type_lengths=st_lengths, epoch=e)
                 loss_bin_list.append(loss_bin)
                 loss_slotname_list.append(loss_slotname)
+                loss_right_st_list.append(loss_tem0)
+                loss_wrong_st_list.append(loss_tem1)
                 
                 pbar.set_description("(Epoch {}) LOSS BIN:{:.4f} LOSS SLOT:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list)))
         
@@ -74,7 +78,7 @@ def main(params):
         if params.tr:
             logger.info("Finish training epoch {}. LOSS BIN:{:.4f} LOSS SLOT:{:.4f} LOSS TEM0:{:.4f} LOSS TEM1:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list), np.mean(loss_tem0_list), np.mean(loss_tem1_list)))
         elif params.sr:
-            logger.info("Finish training epoch {}. LOSS BIN:{:.4f} LOSS SLOT:{:.4f} LOSS TEM0:{:.4f} LOSS TEM1:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list), np.mean(loss_tem0_list), np.mean(loss_tem1_list)))
+            logger.info("Finish training epoch {}. LOSS BIN:{:.4f} LOSS SLOT:{:.4f} LOSS TEM0:{:.4f} LOSS TEM1:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list), np.mean(loss_right_st_list), np.mean(loss_wrong_st_list)))
         else:
             logger.info("Finish training epoch {}. LOSS BIN:{:.4f} LOSS SLOT:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list)))
 

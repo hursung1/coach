@@ -241,7 +241,7 @@ class SentRepreGenerator(nn.Module):
             self.sr = True
             self.tr = False 
 
-    def forward(self, templates, tem_lengths, hidden_layers, x_lengths):
+    def forward(self, templates, tem_lengths, hidden_layers, x_lengths, y_bin=None):
         """
         Inputs:
             if template regularization:
@@ -249,8 +249,9 @@ class SentRepreGenerator(nn.Module):
                 tem_lengths: (bsz,)
             
             elif slot type regularization:
-                slot_type: (bsz, 3, max_slot_entities_len)
-                slot_type_length: (bsz, )
+                templates == slot_type: (bsz, 3, max_slot_entities_len)
+                tem_lengths == slot_type_length: (bsz, )
+                y_bin: (bsz, )
 
             hidden_layers: (bsz, max_length, hidden_size)
             x_lengths: (bsz,)
@@ -274,7 +275,7 @@ class SentRepreGenerator(nn.Module):
         templates_repre = torch.stack((template0_repre, template1_repre, template2_repre), dim=1)  # (bsz, 3, hidden_size)
 
         # generate input sentence representations
-        input_repre, _ = self.input_atten_layer(hidden_layers, x_lengths)
+        input_repre, _ = self.input_atten_layer(hidden_layers, x_lengths, y_bin)
 
         return templates_repre, input_repre
 

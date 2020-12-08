@@ -8,38 +8,35 @@ logger = logging.getLogger()
 
 
 class Dataset(data.Dataset):
-    def __init__(self, X, y1, y2, domains, list1=None, list2=None):
+    def __init__(self, X, y1, y2, domains, list=None, learn_mode=0):
         """
         For no regularization (learn_mode=0)
-        - list1 = None
-        - list2 = None
-        For slot regularization (learn_mode=2)
-        - list1: slot entity list
-        - list2: slot type list
+        - list = None
         For template regularization (learn_mode=1)
-        - list1: template list
-        - list2: None
+        - list: template list
+        For slot regularization (learn_mode=2)
+        - list: slot type list
         """
-        self.learn_mode = 0
+        self.learn_mode = learn_mode
         self.X = X
         self.y1 = y1
         self.y2 = y2
         self.domains = domains
-        if list2 is not None: # slot regularization
-            self.slot_entity_list = list1
-            self.slot_type_list = list2
-            self.learn_mode = 2
-        else: # template regularization
-            self.template_list = list1
-            self.learn_mode = 1
+        if self.learn_mode == 1: # template regularization
+            self.template_list = list
+        elif self.learn_mode == 2: # slot regularization
+            self.slot_type_list = list
+        elif self.learn_mode == 0:
+            pass
+        else:
+            print("Wrong learn_mode input")
+            exit()
 
     def __getitem__(self, index):
         if self.learn_mode == 1:
-            return self.X[index], self.y1[index], self.y2[index], self.domains[index], \
-                self.template_list[index]
+            return self.X[index], self.y1[index], self.y2[index], self.domains[index], self.template_list[index]
         elif self.learn_mode == 2:
-            return self.X[index], self.y1[index], self.y2[index], self.domains[index], \
-                self.slot_entity_list[index], self.slot_type_list[index]
+            return self.X[index], self.y1[index], self.y2[index], self.domains[index], self.slot_type_list[index]
         else:
             return self.X[index], self.y1[index], self.y2[index], self.domains[index]
     
@@ -71,10 +68,7 @@ def collate_fn_for_label_encoder(data):
     return padded_seqs, lengths, y1, y2, domains, padded_templates, tem_lengths
     
 def collate_fn_for_se_reg(data):
-    X, y1, y2, domains, slot_entity, slot_type = zip(*data)
-    # print(slot_entity)
-    # print(slot_type)
-    # print("==============================")
+    X, y1, y2, domains, slot_type = zip(*data)
     lengths = [len(bs_x) for bs_x in X]
     max_lengths = max(lengths)
     padded_seqs = torch.LongTensor(len(X), max_lengths).fill_(PAD_INDEX)
@@ -84,28 +78,18 @@ def collate_fn_for_se_reg(data):
     lengths = torch.LongTensor(lengths)
     domains = torch.LongTensor(domains)
     
-    se_lengths = [] # the number of 'slot entities' for each speech
-    max_token_length = 0 # maximum length of token of each slot entity
-    for sample_se_lst in slot_entity:
-        se_lengths.append(len(sample_se_lst))
-        for tokens in sample_se_lst:
-            if max_token_length < len(tokens):
-                max_token_length = len(tokens)
-    
-    max_se_len = max(se_lengths)
-    padded_slot_entities = torch.LongTensor(len(slot_entity), max_se_len, max_token_length).fill_(PAD_INDEX)
-    padded_slot_type = torch.LongTensor(len(slot_type), 3, max_se_len).fill_(PAD_INDEX)
+    st_lengths = [len(st[0]) for st in slot_type] # the number of 'slot types' for each speech    
+    max_st_len = max(st_lengths)
+    padded_slot_type = torch.LongTensor(len(slot_type), 3, max_st_len).fill_(PAD_INDEX)
 
-    for j, (sample_se, sample_st) in enumerate(zip(slot_entity, slot_type)):
-        length = se_lengths[j]
-        for i, each_se in enumerate(sample_se):
-            padded_slot_entities[j, :length, :len(each_se)] = torch.LongTensor(each_se)
+    for j, sample_st in enumerate(slot_type):
+        length = st_lengths[j]
         padded_slot_type[j, 0, :length] = torch.LongTensor(sample_st[0])
         padded_slot_type[j, 1, :length] = torch.LongTensor(sample_st[1])
         padded_slot_type[j, 2, :length] = torch.LongTensor(sample_st[2])
-    se_lengths = torch.LongTensor(se_lengths)
+    st_lengths = torch.LongTensor(st_lengths)
     
-    return padded_seqs, lengths, y1, y2, domains, padded_slot_entities, padded_slot_type, se_lengths
+    return padded_seqs, lengths, y1, y2, domains, padded_slot_type, st_lengths
     
 
 def collate_fn(data):
@@ -127,7 +111,7 @@ def get_dataloader(tgt_domain, batch_size, use_label_encoder, enable_sr, n_sampl
     if use_label_encoder:
         train_data = {"utter": [], "y1": [], "y2": [], "domains": [], "template_list": []}
     elif enable_sr:
-        train_data = {"utter": [], "y1": [], "y2": [], "domains": [], "slot_entity_list": [], "slot_type_list": []}
+        train_data = {"utter": [], "y1": [], "y2": [], "domains": [], "slot_type_list": []}
     else:
         train_data = {"utter": [], "y1": [], "y2": [], "domains": []}
     for dm_name, dm_data in all_data.items():
@@ -140,7 +124,6 @@ def get_dataloader(tgt_domain, batch_size, use_label_encoder, enable_sr, n_sampl
             if use_label_encoder:
                 train_data["template_list"].extend(dm_data["template_list"])
             elif enable_sr:
-                train_data["slot_entity_list"].extend(dm_data["slot_entity_list"])
                 train_data["slot_type_list"].extend(dm_data["slot_type_list"])
 
     val_data = {"utter": [], "y1": [], "y2": [], "domains": []}
@@ -168,7 +151,6 @@ def get_dataloader(tgt_domain, batch_size, use_label_encoder, enable_sr, n_sampl
         if use_label_encoder:
             train_data["template_list"].extend(all_data[tgt_domain]["template_list"][:n_samples])
         elif enable_sr:
-            train_data["slot_entity_list"].extend(all_data[tgt_domain]["slot_entity_list"][:n_samples])
             train_data["slot_type_list"].extend(all_data[tgt_domain]["slot_type_list"][:n_samples])
 
         # from n to 500 samples as validation set
@@ -184,9 +166,9 @@ def get_dataloader(tgt_domain, batch_size, use_label_encoder, enable_sr, n_sampl
         test_data["domains"] = all_data[tgt_domain]["domains"][500:]
 
     if use_label_encoder:
-        dataset_tr = Dataset(train_data["utter"], train_data["y1"], train_data["y2"], train_data["domains"], train_data["template_list"])
+        dataset_tr = Dataset(train_data["utter"], train_data["y1"], train_data["y2"], train_data["domains"], train_data["template_list"], learn_mode=1)
     elif enable_sr:
-        dataset_tr = Dataset(train_data["utter"], train_data["y1"], train_data["y2"], train_data["domains"], train_data["slot_entity_list"], train_data["slot_type_list"])
+        dataset_tr = Dataset(train_data["utter"], train_data["y1"], train_data["y2"], train_data["domains"], train_data["slot_type_list"], learn_mode=2)
     else:
         dataset_tr = Dataset(train_data["utter"], train_data["y1"], train_data["y2"], train_data["domains"])
     dataset_val = Dataset(val_data["utter"], val_data["y1"], val_data["y2"], val_data["domains"])
