@@ -65,7 +65,7 @@ def main(params):
                 loss_right_st_list.append(loss_tem0)
                 loss_wrong_st_list.append(loss_tem1)
                 
-                pbar.set_description("(Epoch {}) LOSS BIN:{:.4f} LOSS SLOT:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list)))
+                pbar.set_description("(Epoch {}) LOSS BIN:{:.4f} LOSS SLOT:{:.4f} LOSS TYPE0:{:.4f} LOSS TYPE1:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list), np.mean(loss_right_st_list), np.mean(loss_wrong_st_list)))
         
         else:
             for i, (X, lengths, y_bin, y_final, y_dm) in pbar:
@@ -78,7 +78,7 @@ def main(params):
         if params.tr:
             logger.info("Finish training epoch {}. LOSS BIN:{:.4f} LOSS SLOT:{:.4f} LOSS TEM0:{:.4f} LOSS TEM1:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list), np.mean(loss_tem0_list), np.mean(loss_tem1_list)))
         elif params.sr:
-            logger.info("Finish training epoch {}. LOSS BIN:{:.4f} LOSS SLOT:{:.4f} LOSS TEM0:{:.4f} LOSS TEM1:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list), np.mean(loss_right_st_list), np.mean(loss_wrong_st_list)))
+            logger.info("Finish training epoch {}. LOSS BIN:{:.4f} LOSS SLOT:{:.4f} LOSS SLOT TYPE0:{:.4f} LOSS SLOT TYPE1:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list), np.mean(loss_right_st_list), np.mean(loss_wrong_st_list)))
         else:
             logger.info("Finish training epoch {}. LOSS BIN:{:.4f} LOSS SLOT:{:.4f}".format((e+1), np.mean(loss_bin_list), np.mean(loss_slotname_list)))
 

@@ -179,7 +179,7 @@ def get_dataloader(tgt_domain, batch_size, use_label_encoder, enable_sr, n_sampl
     elif enable_sr:
         dataloader_tr = DataLoader(dataset=dataset_tr, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_for_se_reg)
     else:
-        dataloader_tr = DataLoader(dataset=dataset_tr, batch_size=batch_size, shuffle=True, )
+        dataloader_tr = DataLoader(dataset=dataset_tr, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     dataloader_val = DataLoader(dataset=dataset_val, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
     dataloader_test = DataLoader(dataset=dataset_test, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
